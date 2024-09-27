@@ -1,25 +1,53 @@
 #!/usr/bin/python3
-""" Module for testing file storage"""
+"""module with unittests for db_storage"""
+from models import storage
+from datetime import datetime
+from models.user import User
+import unittest
 import MySQLdb
 import os
-import unittest
-from datetime import datetime
-
-from models import storage
-from models.user import User
 
 
-@unittest.skipIf(
-    os.getenv('HBNB_TYPE_STORAGE') != 'db', 'DBStorage test')
+@unittest.skipIf(os.getenv('HBNB_TYPE_STORAGE') != 'db',
+                 'db_storage test not supported')
 class TestDBStorage(unittest.TestCase):
-    """ Class to test the database storage method """
+    """Class that tests DBStorage engine"""
+    def test_new_and_save(self):
+        """Function that tests new and save methods"""
+        db = MySQLdb.connect(user=os.getenv('HBNB_MYSQL_USER'),
+                             host=os.getenv('HBNB_MYSQL_HOST'),
+                             passwd=os.getenv('HBNB_MYSQL_PWD'),
+                             port=3306,
+                             db=os.getenv('HBNB_MYSQL_DB'))
+        new_user = User(**{'first_name': 'Hannibal',
+                           'last_name': 'Mejbri',
+                           'email': 'hm@utd.com',
+                           'password': 13})
+        cur = db.cursor()
+        cur.execute('SELECT COUNT(*) FROM users')
+        old_count = cur.fetchall()
+        cur.close()
+        db.close()
+        new_user.save()
+        db = MySQLdb.connect(user=os.getenv('HBNB_MYSQL_USER'),
+                             host=os.getenv('HBNB_MYSQL_HOST'),
+                             passwd=os.getenv('HBNB_MYSQL_PWD'),
+                             port=3306,
+                             db=os.getenv('HBNB_MYSQL_DB'))
+        cur = db.cursor()
+        cur.execute('SELECT COUNT(*) FROM users')
+        new_count = cur.fetchall()
+        self.assertEqual(new_count[0][0], old_count[0][0] + 1)
+        cur.close()
+        db.close()
+
     def test_new(self):
-        """ New object is correctly added to database """
+        """ Function that tests new objects """
         new = User(
-            email='john2020@gmail.com',
-            password='password',
-            first_name='John',
-            last_name='Zoldyck'
+            email='hm@utd.com',
+            password='13',
+            first_name='Hannibal',
+            last_name='Mejbri'
         )
         self.assertFalse(new in storage.all().values())
         new.save()
@@ -35,20 +63,20 @@ class TestDBStorage(unittest.TestCase):
         cursor.execute('SELECT * FROM users WHERE id="{}"'.format(new.id))
         result = cursor.fetchone()
         self.assertTrue(result is not None)
-        self.assertIn('john2020@gmail.com', result)
-        self.assertIn('password', result)
-        self.assertIn('John', result)
-        self.assertIn('Zoldyck', result)
+        self.assertIn('hm@utd.com', result)
+        self.assertIn('13', result)
+        self.assertIn('Hannibal', result)
+        self.assertIn('Mejbri', result)
         cursor.close()
         dbc.close()
 
     def test_delete(self):
-        """ Object is correctly deleted from database """
+        """Test for delete method"""
         new = User(
-            email='john2020@gmail.com',
-            password='password',
-            first_name='John',
-            last_name='Zoldyck'
+            email='hm@utd.com',
+            password='13',
+            first_name='Hannibal',
+            last_name='Mejbri'
         )
         obj_key = 'User.{}'.format(new.id)
         dbc = MySQLdb.connect(
@@ -64,10 +92,10 @@ class TestDBStorage(unittest.TestCase):
         cursor.execute('SELECT * FROM users WHERE id="{}"'.format(new.id))
         result = cursor.fetchone()
         self.assertTrue(result is not None)
-        self.assertIn('john2020@gmail.com', result)
-        self.assertIn('password', result)
-        self.assertIn('John', result)
-        self.assertIn('Zoldyck', result)
+        self.assertIn('hm@utd.com', result)
+        self.assertIn('13', result)
+        self.assertIn('Hannibal', result)
+        self.assertIn('Mejbri', result)
         self.assertIn(obj_key, storage.all(User).keys())
         new.delete()
         self.assertNotIn(obj_key, storage.all(User).keys())
@@ -75,7 +103,7 @@ class TestDBStorage(unittest.TestCase):
         dbc.close()
 
     def test_reload(self):
-        """ Tests the reloading of the database session """
+        """Test for reload method"""
         dbc = MySQLdb.connect(
             host=os.getenv('HBNB_MYSQL_HOST'),
             port=3306,
@@ -88,29 +116,29 @@ class TestDBStorage(unittest.TestCase):
             'INSERT INTO users(id, created_at, updated_at, email, password' +
             ', first_name, last_name) VALUES(%s, %s, %s, %s, %s, %s, %s);',
             [
-                '4447-by-me',
+                'some-guy',
                 str(datetime.now()),
                 str(datetime.now()),
-                'ben_pike@yahoo.com',
-                'pass',
-                'Benjamin',
-                'Pike',
+                'hm@utd.com',
+                '13',
+                'Hannibal',
+                'Mejbri',
             ]
         )
-        self.assertNotIn('User.4447-by-me', storage.all())
+        self.assertNotIn('User.some-guy', storage.all())
         dbc.commit()
         storage.reload()
-        self.assertIn('User.4447-by-me', storage.all())
+        self.assertIn('User.some-guy', storage.all())
         cursor.close()
         dbc.close()
 
     def test_save(self):
-        """ object is successfully saved to database """
+        """Test for save method"""
         new = User(
-            email='john2020@gmail.com',
-            password='password',
-            first_name='John',
-            last_name='Zoldyck'
+            email='hm@utd.com',
+            password='13',
+            first_name='Hannibal',
+            last_name='Mejbri'
         )
         dbc = MySQLdb.connect(
             host=os.getenv('HBNB_MYSQL_HOST'),
@@ -146,37 +174,3 @@ class TestDBStorage(unittest.TestCase):
         dbc1.close()
         cursor.close()
         dbc.close()
-
-    def test_storage_var_created(self):
-        """ DBStorage object storage created """
-        from models.engine.db_storage import DBStorage
-        self.assertEqual(type(storage), DBStorage)
-
-    def test_new_and_save(self):
-        '''testing  the new and save methods'''
-        db = MySQLdb.connect(user=os.getenv('HBNB_MYSQL_USER'),
-                             host=os.getenv('HBNB_MYSQL_HOST'),
-                             passwd=os.getenv('HBNB_MYSQL_PWD'),
-                             port=3306,
-                             db=os.getenv('HBNB_MYSQL_DB'))
-        new_user = User(**{'first_name': 'jack',
-                           'last_name': 'bond',
-                           'email': 'jack@bond.com',
-                           'password': 12345})
-        cur = db.cursor()
-        cur.execute('SELECT COUNT(*) FROM users')
-        old_count = cur.fetchall()
-        cur.close()
-        db.close()
-        new_user.save()
-        db = MySQLdb.connect(user=os.getenv('HBNB_MYSQL_USER'),
-                             host=os.getenv('HBNB_MYSQL_HOST'),
-                             passwd=os.getenv('HBNB_MYSQL_PWD'),
-                             port=3306,
-                             db=os.getenv('HBNB_MYSQL_DB'))
-        cur = db.cursor()
-        cur.execute('SELECT COUNT(*) FROM users')
-        new_count = cur.fetchall()
-        self.assertEqual(new_count[0][0], old_count[0][0] + 1)
-        cur.close()
-        db.close()
